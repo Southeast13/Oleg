@@ -1,0 +1,41 @@
+workflows:
+  android-workflow:
+    name: Android Debug Build (robust)
+    max_build_duration: 90
+    environment:
+      java: 17
+      android:
+        api_level: 34
+        build_tools_version: 34.0.0
+    scripts:
+      - name: Prepare Gradle
+        script: |
+          set -e
+          echo "Checking for ./gradlew"
+          if [ -x "./gradlew" ]; then
+            echo "Using project gradlew"
+            chmod +x ./gradlew || true
+            export GRADLE_CMD="./gradlew"
+          elif command -v gradle >/dev/null 2>&1; then
+            echo "Using system gradle"
+            export GRADLE_CMD="gradle"
+          else
+            echo "No gradle. Downloading Gradle 8.9 to /tmp/gradle-8.9"
+            wget -q https://services.gradle.org/distributions/gradle-8.9-bin.zip -O /tmp/gradle.zip
+            unzip -q /tmp/gradle.zip -d /tmp
+            export PATH=/tmp/gradle-8.9/bin:$PATH
+            export GRADLE_CMD="gradle"
+          fi
+          echo "GRADLE_CMD=$GRADLE_CMD"
+      - name: Clean project
+        script: |
+          set -e
+          if [ -z "$GRADLE_CMD" ]; then echo "GRADLE_CMD is not set"; exit 1; fi
+          $GRADLE_CMD clean
+      - name: Assemble debug APK
+        script: |
+          set -e
+          if [ -z "$GRADLE_CMD" ]; then echo "GRADLE_CMD is not set"; exit 1; fi
+          $GRADLE_CMD assembleDebug
+    artifacts:
+      - app/build/outputs/**/*.apk
